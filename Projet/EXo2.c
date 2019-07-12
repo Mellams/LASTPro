@@ -1,4 +1,4 @@
-/**Exercice1*/
+/**Exercice2*/
 
 #include <stdio.h>
 #include <string.h>
