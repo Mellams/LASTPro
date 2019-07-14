@@ -6,66 +6,99 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/ipc.h> 
+#include <sys/shm.h> 
+#include <sys/sem.h>
+#include <errno.h>
 
 int main(int argc, char *argv[])
 {
-    pid_t pid1, pid2, pid3;
-    int status;
-    char *argp1[] = {"Q1", argv[1], NULL};Q3
-    if(argc!=4){
-       printf("USAGE projet1 data1.in data2.in data3.in\n");
-       exit(1);
-    }
-    //creation du premier processus fils 
-    pid1 = fork();
-    if(pid1 < 0){
-          perror("Erreur de création du processus\n");
-          exit(EXIT_FAILURE);
-    }
-
-    if(pid1 == 0){
-        execv("./Q1", argp1);
-    }
-
-    else{
-        char *argp2[] = {"Q1", argv[2], NULL};
-        //Creation du second processus fils
-        pid2 = fork();
-        if(pid2 < 0){
-          perror("Erreur de création du second processus\n");
-          pid1 = wait(&status);
-          exit(EXIT_FAILURE);
-        }
-
-        if(pid2 == 0){
-            execv("./Q1", argp2);
-        }
-
-        else{
-            char *argp3[] = {"Q1", argv[3], NULL};
-            //Creation du troisieme processus fils
-            pid3 = fork();
-            if(pid3 < 0){
-              perror("Erreur de création du troisieme processus\n");
-              pid1 = wait(&status);
-              pid2 = wait(&status);
-              exit(EXIT_FAILURE);
-            }
-
-            if(pid3 == 0){
-               execv("./Q1", argp3);
-            }
-
-            else{
-                pid1 = wait(&status);
-                printf("Status de l'arret du fils %d %d\n", status, pid1);
-                pid2 = wait(&status);
-                printf("Status de l'arret du fils %d %d\n", status, pid2);
-                pid3 = wait(&status);
-                printf("Status de l'arret du fils %d %d\n", status, pid3);
-            }
-        }
-
-        
-    } 
-}
+	pid_t pid1,pid2,pid3;
+	int status;
+	key_t key = ftok("shmfile",65); 
+	int i,a=0;
+	int shmid = shmget(key,1024,0666|IPC_CREAT); 
+	char *str = (char*) shmat(shmid,(void*)0,0);
+	sprintf(str, "%d", a);
+	pid1 = fork();
+    	if(pid1 < 0){
+		perror("Erreur de création du processus\n");
+		exit(EXIT_FAILURE);
+    	}
+	if(pid1 == 0){
+		//printf("%d",pid1);
+		//a = a + 1;
+		for(i=0; i < 5 ;i++){
+			// lecture de a
+			a = atoi(str);
+			//printf("Proc %d %d\n", getpid(), a);
+			// modification de a
+			a = a + 10;
+			sleep(a);
+			// ecriture de a
+			sprintf(str, "%d", a);
+		}
+    	}
+	else
+	{
+		sleep(7);
+		pid2 = fork();
+	    	if(pid1 < 0){
+			perror("Erreur de création du processus\n");
+			//pid1 = wait(&status);
+			exit(EXIT_FAILURE);
+	    	}
+		if(pid2 == 0){
+			//printf("%d",pid2);
+			//a = a + 1;
+			for(i=0; i < 5; i++){
+				// lecture de a
+				a = atoi(str);
+				//printf("Proc %d %d\n", getpid(), a);
+				// modification de a
+				a = a + 1;
+				sleep(a);
+				// ecriture de a
+				sprintf(str, "%d", a);
+			}
+	    	}
+		else
+		{
+			sleep(7);
+			pid3 = fork();
+		    	if(pid3 < 0){
+				perror("Erreur de création du processus\n");
+				//pid1 = wait(&status);
+				//pid2 = wait(&status);
+				exit(EXIT_FAILURE);
+		    	}
+			if(pid3 == 0){
+				//printf("%d",pid3);
+				//a = a + 1;
+				for(i=0; i < 5; i++){
+				     // lecture de a
+				     a = atoi(str);
+				     //printf("Proc %d %d\n", getpid(), a);
+				     // modification de a
+				     a = a + 1;
+				     sleep(a);
+				     // ecriture de a
+				     sprintf(str, "%d", a);
+				}
+	    		}
+			else
+			{
+				//pid1 = wait(&status);
+				printf("Le pid du fils 1 est %d\n", pid1);
+				//pid2 = wait(&status);
+				printf("Le pid du fils 2 est %d\n", pid2);
+				//pid3 = wait(&status);
+				printf("Le pid du fils 3 est %d\n", pid3);
+				a = atoi(str);
+				printf("Valeur Finale de a = %d\n", a);
+				//detacche str de la mémoire partagée
+				shmdt(str); 
+						
+			}
+		}
+	}
